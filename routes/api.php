@@ -1,7 +1,7 @@
 <?php
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\User\UserController;
 use App\Http\Controllers\Auth\AuthController;
 
 /*
@@ -20,4 +20,10 @@ Route::post('/login', [AuthController::class, 'login'])->name('login');
 
 Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+    Route::group(['prefix' => 'user', 'as' => 'user.'], function () {
+        Route::post('/update', [UserController::class, 'update'])->name('update');
+        Route::get('/films', [UserController::class, 'getFilmsByHeroName'])->name('get.films.by.hero.name');
+        Route::get('/planets', [UserController::class, 'getPlanetsByHeroName'])->name('get.planets.by.hero.name');
+    });
 });
