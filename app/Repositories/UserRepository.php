@@ -10,25 +10,32 @@ use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Cache;
 
 class UserRepository implements UserRepositoryInterface
 {
     public function register(RegisterRequest $request)
     {
-        $response = Http::get('https://swapi.dev/api/people');
-        $response = $this->getDecodedResponse($response);
+        if (!Cache::get('people')) {
+            $response = Http::get('https://swapi.dev/api/people');
+            Cache::add('people', $this->getDecodedResponse($response), now()->addDay());
+        }
 
-        $heroId = rand(1, $response['count']);
+        $response = Cache::get('people');
+        $heroId   = rand(1, $response['count']);
 
-        $response = Http::get('https://swapi.dev/api/people/' .$heroId);
-        $response = $this->getDecodedResponse($response);
+        if (!Cache::get('people' .$heroId)) {
+            $response = Http::get('https://swapi.dev/api/people/' .$heroId);
+            Cache::add('people' .$heroId, $this->getDecodedResponse($response), now()->addDay());
+        }
 
-        $heroName = $response['name'];
+        $response = Cache::get('people' .$heroId);
+        $hero     = $response['name'];
 
         $user = User::create([
             'email'    => $request->input('email'),
             'password' => Hash::make($request->input('password')),
-            'hero'     => $heroName,
+            'hero'     => $hero,
         ]);
 
         $token = $user->createToken('appToken')->plainTextToken;
@@ -93,15 +100,21 @@ class UserRepository implements UserRepositoryInterface
 
     public function getFilmsByHeroName(User $user)
     {
-        $response = Http::get('https://swapi.dev/api/people/?search=' .$user->hero);
-        $response = $this->getDecodedResponse($response);
+        if (!Cache::get('films' .$user->hero)) {
+            $response = Http::get('https://swapi.dev/api/people/?search=' .$user->hero);
+            Cache::add('films' .$user->hero, $this->getDecodedResponse($response), now()->addDay());
+        }
+
+        $response = Cache::get('films' .$user->hero);
 
         $response = collect($response['results'])->mapWithKeys(function ($result) {
             $films = collect($result['films'])->map(function ($film) {
-                $response = Http::get($film);
-                $response = $this->getDecodedResponse($response);
+                if (!Cache::get($film)) {
+                    $response = Http::get($film);
+                    Cache::add($film, $this->getDecodedResponse($response), now()->addDay());
+                }
 
-                return $response;
+                return Cache::get($film);
             });
 
             return [
@@ -117,15 +130,21 @@ class UserRepository implements UserRepositoryInterface
 
     public function getPlanetsByHeroName(User $user)
     {
-        $response = Http::get('https://swapi.dev/api/people/?search=' .$user->hero);
-        $response = $this->getDecodedResponse($response);
+        if (!Cache::get('planets' .$user->hero)) {
+            $response = Http::get('https://swapi.dev/api/people/?search=' .$user->hero);
+            Cache::add('planets' .$user->hero, $this->getDecodedResponse($response), now()->addDay());
+        }
+
+        $response = Cache::get('planets' .$user->hero);
 
         $response = collect($response['results'])->mapWithKeys(function ($result) {
             $planets = collect($result['homeworld'])->map(function ($planet) {
-                $response = Http::get($planet);
-                $response = $this->getDecodedResponse($response);
+                if (!Cache::get($planet)) {
+                    $response = Http::get($planet);
+                    Cache::add($planet, $this->getDecodedResponse($response), now()->addDay());
+                }
 
-                return $response;
+                return Cache::get($planet);
             });
 
             return [
