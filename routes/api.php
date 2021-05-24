@@ -25,5 +25,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/update', [UserController::class, 'update'])->name('update');
         Route::get('/films', [UserController::class, 'getFilmsByHeroName'])->name('get.films.by.hero.name');
         Route::get('/planets', [UserController::class, 'getPlanetsByHeroName'])->name('get.planets.by.hero.name');
+        Route::get('/{resources}/{id}', [UserController::class, 'getResources'])->name('get.resources');
     });
 });

@@ -94,4 +94,37 @@ class UserController extends Controller
             'results' => $response,
         ], 200);
     }
+
+    public function getResources(string $resource, int $id)
+    {
+        $user = auth()->user();
+
+        if (!$this->cacheRepository->get($resource . '/' . $id)) {
+            $response = Http::get($this->swapi . $resource . '/' . $id);
+            $this->cacheRepository->add($resource . '/' . $id, $this->getDecodedResponse($response), now()->addDay());
+        }
+
+        $response = $this->cacheRepository->get($resource . '/' . $id);
+
+        $response = collect($response['people'])->map(function ($hero) {
+            if (!$this->cacheRepository->get($hero)) {
+                $response = Http::get($hero);
+                $this->cacheRepository->add($hero, $this->getDecodedResponse($response), now()->addDay());
+            }
+
+            return $this->cacheRepository->get($hero)['name'];
+        });
+
+        dd($response);
+
+        return response()->json([
+            'message' => 'Success.',
+            'results' => $response,
+        ], 200);
+    }
+
+    private function getDecodedResponse($response)
+    {
+        return json_decode($response->getBody()->getContents(), true);
+    }
 }
