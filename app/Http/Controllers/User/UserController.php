@@ -115,7 +115,15 @@ class UserController extends Controller
             return $this->cacheRepository->get($hero)['name'];
         });
 
-        dd($response);
+        $heroName = array_search($user->hero, $response->toArray());
+
+        if ($heroName === false) {
+            return response()->json([
+                'message' => 'Forbidden.'
+            ], 403);
+        }
+
+        $response = $this->cacheRepository->get($resource . '/' . $id);
 
         return response()->json([
             'message' => 'Success.',
