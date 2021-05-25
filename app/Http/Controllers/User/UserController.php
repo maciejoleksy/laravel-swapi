@@ -5,51 +5,61 @@ namespace App\Http\Controllers\User;
 use App\Contracts\Repositories\UserRepositoryInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\UpdateRequest;
-use Illuminate\Contracts\Cache\Factory as CacheRepository;
-use Illuminate\Support\Facades\Http;
+use App\Contracts\Helpers\Cache as CacheRepository;
+use App\Contracts\Helpers\Swapi as SwapiRepository;
+use App\Contracts\Helpers\ApiResponse;
 
 class UserController extends Controller
 {
     private $userRepository;
 
+    private $cacheRepository;
+
+    private $swapiRepository;
+
+    private $apiResponse;
+
+    private $swapiUrl;
+
     public function __construct(
         UserRepositoryInterface $userRepository,
-        CacheRepository $cacheRepository
-    ) {
-        $this->userRepository  = $userRepository;
+        CacheRepository $cacheRepository,
+        SwapiRepository $swapiRepository,
+        ApiResponse $apiResponse
+    )
+    {
+        $this->userRepository = $userRepository;
         $this->cacheRepository = $cacheRepository;
-        $this->swapi           = config('swapi.base_uri');
+        $this->swapiRepository = $swapiRepository;
+        $this->apiResponse = $apiResponse;
+        $this->swapiUrl = config('swapi.base_url');
     }
 
     public function update(UpdateRequest $request)
     {
         $user = auth()->user();
 
-        return $this->userRepository->update(
+        $this->userRepository->update(
             $user,
             $request->input('email')
         );
+
+        return $this->apiResponse->success();
     }
 
     public function getFilmsByHeroName()
     {
         $user = auth()->user();
 
-        if (!$this->cacheRepository->get('films' . $user->hero)) {
-            $response = Http::get($this->swapi . 'people/?search=' . $user->hero);
-            $this->cacheRepository->add('films' . $user->hero, $this->getDecodedResponse($response), now()->addDay());
-        }
-
-        $response = $this->cacheRepository->get('films' . $user->hero);
+        $response = $this->cacheRepository->getOrSet('films' . $user->hero, function () use ($user) {
+            return $this->swapiRepository->getResponse($this->swapiUrl . 'people/?search=' . $user->hero);
+        });
 
         $response = collect($response['results'])->mapWithKeys(function ($result) {
             $films = collect($result['films'])->map(function ($film) {
-                if (!$this->cacheRepository->get($film)) {
-                    $response = Http::get($film);
-                    $this->cacheRepository->add($film, $this->getDecodedResponse($response), now()->addDay());
-                }
-
-                return $this->cacheRepository->get($film);
+                return $this->cacheRepository->getOrSet($film, function () use ($film) {
+                    return $this->swapiRepository->getResponse($film);
+                });
             });
 
             return [
@@ -57,31 +67,22 @@ class UserController extends Controller
             ];
         });
 
-        return response()->json([
-            'message' => 'Success.',
-            'results' => $response,
-        ], 200);
+        return $this->apiResponse->success($response);
     }
 
     public function getPlanetsByHeroName()
     {
         $user = auth()->user();
 
-        if (!$this->cacheRepository->get('films' . $user->hero)) {
-            $response = Http::get($this->swapi . 'people/?search=' . $user->hero);
-            $this->cacheRepository->add('films' . $user->hero, $this->getDecodedResponse($response), now()->addDay());
-        }
-
-        $response = $this->cacheRepository->get('films' . $user->hero);
+        $response = $this->cacheRepository->getOrSet('planets' . $user->hero, function () use ($user) {
+            return $this->swapiRepository->getResponse($this->swapiUrl . 'people/?search=' . $user->hero);
+        });
 
         $response = collect($response['results'])->mapWithKeys(function ($result) {
             $planets = collect($result['homeworld'])->map(function ($planet) {
-                if (!$this->cacheRepository->get($planet)) {
-                    $response = Http::get($planet);
-                    $this->cacheRepository->add($planet, $this->getDecodedResponse($response), now()->addDay());
-                }
-
-                return $this->cacheRepository->get($planet);
+                return $this->cacheRepository->getOrSet($planet, function () use ($planet) {
+                    return $this->swapiRepository->getResponse($planet);
+                });
             });
 
             return [
@@ -89,50 +90,31 @@ class UserController extends Controller
             ];
         });
 
-        return response()->json([
-            'message' => 'Success.',
-            'results' => $response,
-        ], 200);
+        return $this->apiResponse->success($response);
     }
 
     public function getResources(string $resource, int $id)
     {
         $user = auth()->user();
 
-        if (!$this->cacheRepository->get($resource . '/' . $id)) {
-            $response = Http::get($this->swapi . $resource . '/' . $id);
-            $this->cacheRepository->add($resource . '/' . $id, $this->getDecodedResponse($response), now()->addDay());
-        }
+        $resource = $this->cacheRepository->getOrSet($resource . '/' . $id, function () use ($resource, $id) {
+            return $this->swapiRepository->getResponse($this->swapiUrl . $resource . '/' . $id);
+        });
 
-        $response = $this->cacheRepository->get($resource . '/' . $id);
+        $response = collect($resource['people'])->map(function ($hero) {
+            $response = $this->cacheRepository->getOrSet($hero, function () use ($hero) {
+                return $this->swapiRepository->getResponse($hero);
+            });
 
-        $response = collect($response['people'])->map(function ($hero) {
-            if (!$this->cacheRepository->get($hero)) {
-                $response = Http::get($hero);
-                $this->cacheRepository->add($hero, $this->getDecodedResponse($response), now()->addDay());
-            }
-
-            return $this->cacheRepository->get($hero)['name'];
+            return $response['name'];
         });
 
         $heroName = array_search($user->hero, $response->toArray());
 
-        if ($heroName === false) {
-            return response()->json([
-                'message' => 'Forbidden.'
-            ], 403);
+        if (!$heroName) {
+            return $this->apiResponse->error(401, 'Unauthorized.');
         }
 
-        $response = $this->cacheRepository->get($resource . '/' . $id);
-
-        return response()->json([
-            'message' => 'Success.',
-            'results' => $response,
-        ], 200);
-    }
-
-    private function getDecodedResponse($response)
-    {
-        return json_decode($response->getBody()->getContents(), true);
+        return $this->apiResponse->success($resource);
     }
 }

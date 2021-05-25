@@ -6,62 +6,77 @@ use App\Contracts\Repositories\UserRepositoryInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
-use Illuminate\Contracts\Cache\Factory as CacheRepository;
-use Illuminate\Support\Facades\Http;
+use App\Contracts\Helpers\Cache as CacheRepository;
+use App\Contracts\Helpers\Swapi as SwapiRepository;
+use App\Contracts\Helpers\ApiResponse;
 
 class AuthController extends Controller
 {
     private $userRepository;
 
+    private $cacheRepository;
+
+    private $swapiRepository;
+
+    private $apiResponse;
+
+    private $swapiUrl;
+
     public function __construct(
         UserRepositoryInterface $userRepository,
-        CacheRepository $cacheRepository
-    ) {
-        $this->userRepository  = $userRepository;
+        CacheRepository $cacheRepository,
+        SwapiRepository $swapiRepository,
+        ApiResponse $apiResponse
+    )
+    {
+        $this->userRepository = $userRepository;
         $this->cacheRepository = $cacheRepository;
-        $this->swapi           = config('swapi.base_uri');
+        $this->swapiRepository = $swapiRepository;
+        $this->apiResponse = $apiResponse;
+        $this->swapiUrl = config('swapi.base_url');
     }
 
     public function register(RegisterRequest $request)
     {
-        if (!$this->cacheRepository->get('people')) {
-            $response = Http::get($this->swapi . 'people');
-            $this->cacheRepository->add('people', $this->getDecodedResponse($response), now()->addDay());
-        }
+        $response = $this->cacheRepository->getOrSet('people', function () {
+            return $this->swapiRepository->getResponse($this->swapiUrl . 'people');
+        });
 
-        $response = $this->cacheRepository->get('people');
-        $hero     = rand(1, $response['count']);
+        $hero = rand(1, $response['count']);
 
-        if (!$this->cacheRepository->get('people' . $hero)) {
-            $response = Http::get($this->swapi . 'people/' . $hero);
-            $this->cacheRepository->add('people' . $hero, $this->getDecodedResponse($response), now()->addDay());
-        }
+        $response = $this->cacheRepository->getOrSet('people' . $hero, function () use ($hero) {
+            return $this->swapiRepository->getResponse($this->swapiUrl . 'people/' . $hero);
+        });
 
-        $response = $this->cacheRepository->get('people' . $hero);
-        $hero     = $response['name'];
+        $hero = $response['name'];
 
-        return $this->userRepository->register(
+        $register = $this->userRepository->register(
             $request->input('email'),
             $request->input('password'),
             $hero
         );
+
+        return $this->apiResponse->success($register);
     }
 
     public function login(LoginRequest $request)
     {
-        return $this->userRepository->login(
+        $login = $this->userRepository->login(
             $request->input('email'),
             $request->input('password'),
         );
+
+        if (!$login) {
+            return $this->apiResponse->error(401, 'Wrong data.');
+        }
+
+        return $this->apiResponse->success($login);
     }
 
     public function logout()
     {
-        return $this->userRepository->logout();
-    }
+        $this->userRepository->logout();
 
-    private function getDecodedResponse($response)
-    {
-        return json_decode($response->getBody()->getContents(), true);
+        return $this->apiResponse->success();
     }
 }
