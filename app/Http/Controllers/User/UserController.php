@@ -5,8 +5,8 @@ namespace App\Http\Controllers\User;
 use App\Contracts\Repositories\UserRepositoryInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\UpdateRequest;
-use Illuminate\Contracts\Cache\Factory as CacheRepository;
-use Illuminate\Support\Facades\Http;
+use App\Contracts\Helpers\Cache;
+use App\Contracts\Helpers\Swapi;
 
 class UserController extends Controller
 {
@@ -14,10 +14,8 @@ class UserController extends Controller
 
     public function __construct(
         UserRepositoryInterface $userRepository,
-        CacheRepository $cacheRepository
     ) {
         $this->userRepository  = $userRepository;
-        $this->cacheRepository = $cacheRepository;
         $this->swapi           = config('swapi.base_uri');
     }
 
@@ -25,31 +23,29 @@ class UserController extends Controller
     {
         $user = auth()->user();
 
-        return $this->userRepository->update(
+        $this->userRepository->update(
             $user,
             $request->input('email')
         );
+
+        return response()->json([
+            'message' => 'Email changed.'
+        ], 200);
     }
 
-    public function getFilmsByHeroName()
+    public function getFilmsByHeroName(Cache $cache, Swapi $swapi)
     {
         $user = auth()->user();
 
-        if (!$this->cacheRepository->get('films' . $user->hero)) {
-            $response = Http::get($this->swapi . 'people/?search=' . $user->hero);
-            $this->cacheRepository->add('films' . $user->hero, $this->getDecodedResponse($response), now()->addDay());
-        }
+        $response = $cache->getOrSet('films' . $user->hero, function() use ($user, $swapi) {
+            return $swapi->getResponse($this->swapi . 'people/?search=' . $user->hero);
+        });
 
-        $response = $this->cacheRepository->get('films' . $user->hero);
-
-        $response = collect($response['results'])->mapWithKeys(function ($result) {
-            $films = collect($result['films'])->map(function ($film) {
-                if (!$this->cacheRepository->get($film)) {
-                    $response = Http::get($film);
-                    $this->cacheRepository->add($film, $this->getDecodedResponse($response), now()->addDay());
-                }
-
-                return $this->cacheRepository->get($film);
+        $response = collect($response['results'])->mapWithKeys(function ($result) use ($cache, $swapi) {
+            $films = collect($result['films'])->map(function ($film) use ($cache, $swapi) {
+                return $cache->getOrSet($film, function() use ($film, $swapi) {
+                    return $swapi->getResponse($film);
+                });
             });
 
             return [
@@ -63,25 +59,19 @@ class UserController extends Controller
         ], 200);
     }
 
-    public function getPlanetsByHeroName()
+    public function getPlanetsByHeroName(Cache $cache, Swapi $swapi)
     {
         $user = auth()->user();
 
-        if (!$this->cacheRepository->get('films' . $user->hero)) {
-            $response = Http::get($this->swapi . 'people/?search=' . $user->hero);
-            $this->cacheRepository->add('films' . $user->hero, $this->getDecodedResponse($response), now()->addDay());
-        }
+        $response = $cache->getOrSet('planets' . $user->hero, function() use ($user, $swapi) {
+            return $swapi->getResponse($this->swapi . 'people/?search=' . $user->hero);
+        });
 
-        $response = $this->cacheRepository->get('films' . $user->hero);
-
-        $response = collect($response['results'])->mapWithKeys(function ($result) {
-            $planets = collect($result['homeworld'])->map(function ($planet) {
-                if (!$this->cacheRepository->get($planet)) {
-                    $response = Http::get($planet);
-                    $this->cacheRepository->add($planet, $this->getDecodedResponse($response), now()->addDay());
-                }
-
-                return $this->cacheRepository->get($planet);
+        $response = collect($response['results'])->mapWithKeys(function ($result) use ($cache) {
+            $planets = collect($result['homeworld'])->map(function ($planet) use ($cache) {
+                return $cache->getOrSet($planet, function() use ($planet) {
+                    return $swapi->getResponse($planet);
+                });
             });
 
             return [
@@ -95,29 +85,25 @@ class UserController extends Controller
         ], 200);
     }
 
-    public function getResources(string $resource, int $id)
+    public function getResources(string $resource, int $id, Cache $cache, Swapi $swapi)
     {
         $user = auth()->user();
 
-        if (!$this->cacheRepository->get($resource . '/' . $id)) {
-            $response = Http::get($this->swapi . $resource . '/' . $id);
-            $this->cacheRepository->add($resource . '/' . $id, $this->getDecodedResponse($response), now()->addDay());
-        }
-
-        $response = $this->cacheRepository->get($resource . '/' . $id);
-
-        $response = collect($response['people'])->map(function ($hero) {
-            if (!$this->cacheRepository->get($hero)) {
-                $response = Http::get($hero);
-                $this->cacheRepository->add($hero, $this->getDecodedResponse($response), now()->addDay());
-            }
-
-            return $this->cacheRepository->get($hero)['name'];
+        $response = $cache->getOrSet($resource . '/' . $id, function() use ($id, $swapi, $resource) {
+            return $swapi->getResponse($this->swapi . $resource . '/' . $id);
         });
 
+        $response = collect($response['people'])->map(function ($hero) use ($cache, $swapi) {
+            $response = $cache->getOrSet($hero, function() use ($hero, $swapi) {
+                return $swapi->getResponse($hero);
+            });
+            
+            return $response['name'];
+        });
+        
         $heroName = array_search($user->hero, $response->toArray());
 
-        if ($heroName === false) {
+        if (!$heroName) {
             return response()->json([
                 'message' => 'Forbidden.'
             ], 403);
@@ -129,10 +115,5 @@ class UserController extends Controller
             'message' => 'Success.',
             'results' => $response,
         ], 200);
-    }
-
-    private function getDecodedResponse($response)
-    {
-        return json_decode($response->getBody()->getContents(), true);
     }
 }
