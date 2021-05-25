@@ -12,15 +12,15 @@ class UserRepository implements UserRepositoryInterface
     public function register(string $email, string $password, string $hero)
     {
         $user = User::create([
-            'email'    => $email,
+            'email' => $email,
             'password' => Hash::make($password),
-            'hero'     => $hero,
+            'hero' => $hero,
         ]);
 
         $token = $user->createToken('appToken')->plainTextToken;
 
         return [
-            'user'  => $user,
+            'user' => $user,
             'token' => $token,
         ];
     }
@@ -38,19 +38,19 @@ class UserRepository implements UserRepositoryInterface
         $token = $user->createToken('appToken')->plainTextToken;
 
         return [
-            'user'  => $user,
+            'user' => $user,
             'token' => $token,
         ];
     }
 
     public function logout()
     {
-        return auth()->user()->tokens()->delete();
+        auth()->user()->tokens()->delete();
     }
 
     public function update(User $user, string $email)
     {
-        return $user->update([
+        $user->update([
             'email' => $email,
         ]);
     }

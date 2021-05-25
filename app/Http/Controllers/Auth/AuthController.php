@@ -13,35 +13,38 @@ use App\Contracts\Helpers\ApiResponse;
 class AuthController extends Controller
 {
     private $userRepository;
-    
+
     private $cacheRepository;
 
     private $swapiRepository;
 
     private $apiResponse;
 
+    private $swapiUrl;
+
     public function __construct(
         UserRepositoryInterface $userRepository,
         CacheRepository $cacheRepository,
         SwapiRepository $swapiRepository,
         ApiResponse $apiResponse
-    ) {
-        $this->userRepository  = $userRepository;
+    )
+    {
+        $this->userRepository = $userRepository;
         $this->cacheRepository = $cacheRepository;
         $this->swapiRepository = $swapiRepository;
-        $this->apiResponse     = $apiResponse;
-        $this->swapiUrl        = config('swapi.base_url');
+        $this->apiResponse = $apiResponse;
+        $this->swapiUrl = config('swapi.base_url');
     }
 
     public function register(RegisterRequest $request)
     {
-        $response = $this->cacheRepository->getOrSet('people', function() {
+        $response = $this->cacheRepository->getOrSet('people', function () {
             return $this->swapiRepository->getResponse($this->swapiUrl . 'people');
         });
 
         $hero = rand(1, $response['count']);
 
-        $response = $this->cacheRepository->getOrSet('people' . $hero, function() use ($hero) {
+        $response = $this->cacheRepository->getOrSet('people' . $hero, function () use ($hero) {
             return $this->swapiRepository->getResponse($this->swapiUrl . 'people/' . $hero);
         });
 
@@ -62,7 +65,7 @@ class AuthController extends Controller
             $request->input('email'),
             $request->input('password'),
         );
-        
+
         if (!$login) {
             return $this->apiResponse->error(401, 'Wrong data.');
         }

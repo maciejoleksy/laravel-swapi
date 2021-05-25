@@ -12,7 +12,7 @@ class Swapi
             $response = Http::get($swapi);
 
             return $this->getDecodedResponse($response);
-        } catch (\Exception $exception){
+        } catch (\Exception $exception) {
             return response()->json([
                 'message' => 'Service Unavailable.'
             ], 503);
