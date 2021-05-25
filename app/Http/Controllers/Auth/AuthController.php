@@ -6,30 +6,38 @@ use App\Contracts\Repositories\UserRepositoryInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
-use App\Contracts\Helpers\Cache;
-use App\Contracts\Helpers\Swapi;
+use App\Contracts\Helpers\Cache as CacheRepository;
+use App\Contracts\Helpers\Swapi as SwapiRepository;
 
 class AuthController extends Controller
 {
     private $userRepository;
+    
+    private $cacheRepository;
+
+    private $swapiRepository;
 
     public function __construct(
         UserRepositoryInterface $userRepository,
+        CacheRepository $cacheRepository,
+        SwapiRepository $swapiRepository
     ) {
         $this->userRepository  = $userRepository;
-        $this->swapi           = config('swapi.base_uri');
+        $this->cacheRepository = $cacheRepository;
+        $this->swapiRepository = $swapiRepository;
+        $this->swapiUrl        = config('swapi.base_url');
     }
 
-    public function register(RegisterRequest $request, Cache $cache, Swapi $swapi)
+    public function register(RegisterRequest $request)
     {
-        $response = $cache->getOrSet('people', function() use ($swapi) {
-            return $swapi->getResponse($this->swapi . 'people');
+        $response = $this->cacheRepository->getOrSet('people', function() {
+            return $this->swapiRepository->getResponse($this->swapiUrl . 'people');
         });
 
         $hero = rand(1, $response['count']);
 
-        $response = $cache->getOrSet('people' . $hero, function() use ($hero, $swapi) {
-            return $swapi->getResponse($this->swapi . 'people/' . $hero);
+        $response = $this->cacheRepository->getOrSet('people' . $hero, function() use ($hero) {
+            return $this->swapiRepository->getResponse($this->swapiUrl . 'people/' . $hero);
         });
 
         $hero = $response['name'];
@@ -67,11 +75,10 @@ class AuthController extends Controller
 
     public function logout()
     {
-        $logout = $this->userRepository->logout();
+        $this->userRepository->logout();
 
         return response()->json([
-            'message' => 'Logout.',
-            'results' => $logout,
+            'message' => 'Logout.'
         ], 200);
     }
 }

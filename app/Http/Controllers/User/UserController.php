@@ -5,18 +5,26 @@ namespace App\Http\Controllers\User;
 use App\Contracts\Repositories\UserRepositoryInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\UpdateRequest;
-use App\Contracts\Helpers\Cache;
-use App\Contracts\Helpers\Swapi;
+use App\Contracts\Helpers\Cache as CacheRepository;
+use App\Contracts\Helpers\Swapi as SwapiRepository;
 
 class UserController extends Controller
 {
     private $userRepository;
+    
+    private $cacheRepository;
+
+    private $swapiRepository;
 
     public function __construct(
         UserRepositoryInterface $userRepository,
+        CacheRepository $cacheRepository,
+        SwapiRepository $swapiRepository
     ) {
         $this->userRepository  = $userRepository;
-        $this->swapi           = config('swapi.base_uri');
+        $this->cacheRepository = $cacheRepository;
+        $this->swapiRepository = $swapiRepository;
+        $this->swapiUrl        = config('swapi.base_uri');
     }
 
     public function update(UpdateRequest $request)
@@ -33,18 +41,18 @@ class UserController extends Controller
         ], 200);
     }
 
-    public function getFilmsByHeroName(Cache $cache, Swapi $swapi)
+    public function getFilmsByHeroName()
     {
         $user = auth()->user();
 
-        $response = $cache->getOrSet('films' . $user->hero, function() use ($user, $swapi) {
-            return $swapi->getResponse($this->swapi . 'people/?search=' . $user->hero);
+        $response = $this->cacheRepository->getOrSet('films' . $user->hero, function() use ($user) {
+            return $this->swapiRepository->getResponse($this->swapiUrl . 'people/?search=' . $user->hero);
         });
 
-        $response = collect($response['results'])->mapWithKeys(function ($result) use ($cache, $swapi) {
-            $films = collect($result['films'])->map(function ($film) use ($cache, $swapi) {
-                return $cache->getOrSet($film, function() use ($film, $swapi) {
-                    return $swapi->getResponse($film);
+        $response = collect($response['results'])->mapWithKeys(function ($result) {
+            $films = collect($result['films'])->map(function ($film) {
+                return $this->cacheRepository->getOrSet($film, function() use ($film) {
+                    return $this->swapiRepository->getResponse($film);
                 });
             });
 
@@ -59,18 +67,18 @@ class UserController extends Controller
         ], 200);
     }
 
-    public function getPlanetsByHeroName(Cache $cache, Swapi $swapi)
+    public function getPlanetsByHeroName()
     {
         $user = auth()->user();
 
-        $response = $cache->getOrSet('planets' . $user->hero, function() use ($user, $swapi) {
-            return $swapi->getResponse($this->swapi . 'people/?search=' . $user->hero);
+        $response = $this->cacheRepository->getOrSet('planets' . $user->hero, function() use ($user) {
+            return $this->swapiRepository->getResponse($this->swapiUrl . 'people/?search=' . $user->hero);
         });
 
-        $response = collect($response['results'])->mapWithKeys(function ($result) use ($cache) {
-            $planets = collect($result['homeworld'])->map(function ($planet) use ($cache) {
-                return $cache->getOrSet($planet, function() use ($planet) {
-                    return $swapi->getResponse($planet);
+        $response = collect($response['results'])->mapWithKeys(function ($result) {
+            $planets = collect($result['homeworld'])->map(function ($planet) {
+                return $this->cacheRepository->getOrSet($planet, function() use ($planet) {
+                    return $this->swapiRepository->getResponse($planet);
                 });
             });
 
@@ -85,17 +93,17 @@ class UserController extends Controller
         ], 200);
     }
 
-    public function getResources(string $resource, int $id, Cache $cache, Swapi $swapi)
+    public function getResources(string $resource, int $id)
     {
         $user = auth()->user();
 
-        $response = $cache->getOrSet($resource . '/' . $id, function() use ($id, $swapi, $resource) {
-            return $swapi->getResponse($this->swapi . $resource . '/' . $id);
+        $resource = $this->cacheRepository->getOrSet($resource . '/' . $id, function() use ($resource, $id) {
+            return $this->swapiRepository->getResponse($this->swapiUrl . $resource . '/' . $id);
         });
 
-        $response = collect($response['people'])->map(function ($hero) use ($cache, $swapi) {
-            $response = $cache->getOrSet($hero, function() use ($hero, $swapi) {
-                return $swapi->getResponse($hero);
+        $response = collect($resource['people'])->map(function ($hero) {
+            $response = $this->cacheRepository->getOrSet($hero, function() use ($hero) {
+                return $this->swapiRepository->getResponse($hero);
             });
             
             return $response['name'];
@@ -109,11 +117,9 @@ class UserController extends Controller
             ], 403);
         }
 
-        $response = $this->cacheRepository->get($resource . '/' . $id);
-
         return response()->json([
             'message' => 'Success.',
-            'results' => $response,
+            'results' => $resource,
         ], 200);
     }
 }
