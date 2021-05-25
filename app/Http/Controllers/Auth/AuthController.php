@@ -8,6 +8,7 @@ use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Contracts\Helpers\Cache as CacheRepository;
 use App\Contracts\Helpers\Swapi as SwapiRepository;
+use App\Contracts\Helpers\ApiResponse;
 
 class AuthController extends Controller
 {
@@ -17,14 +18,18 @@ class AuthController extends Controller
 
     private $swapiRepository;
 
+    private $apiResponse;
+
     public function __construct(
         UserRepositoryInterface $userRepository,
         CacheRepository $cacheRepository,
-        SwapiRepository $swapiRepository
+        SwapiRepository $swapiRepository,
+        ApiResponse $apiResponse
     ) {
         $this->userRepository  = $userRepository;
         $this->cacheRepository = $cacheRepository;
         $this->swapiRepository = $swapiRepository;
+        $this->apiResponse     = $apiResponse;
         $this->swapiUrl        = config('swapi.base_url');
     }
 
@@ -48,10 +53,7 @@ class AuthController extends Controller
             $hero
         );
 
-        return response()->json([
-            'message' => 'User created.',
-            'results' => $register,
-        ], 201);
+        return $this->apiResponse->success($register);
     }
 
     public function login(LoginRequest $request)
@@ -62,23 +64,16 @@ class AuthController extends Controller
         );
         
         if (!$login) {
-            return response()->json([
-                'message' => 'Wrong data.'
-            ], 401);
+            return $this->apiResponse->error(401, 'Wrong data.');
         }
 
-        return response()->json([
-            'message' => 'User login.',
-            'results' => $login,
-        ], 200);
+        return $this->apiResponse->success($login);
     }
 
     public function logout()
     {
         $this->userRepository->logout();
 
-        return response()->json([
-            'message' => 'Logout.'
-        ], 200);
+        return $this->apiResponse->success();
     }
 }

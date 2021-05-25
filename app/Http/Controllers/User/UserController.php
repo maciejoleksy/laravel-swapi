@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\User\UpdateRequest;
 use App\Contracts\Helpers\Cache as CacheRepository;
 use App\Contracts\Helpers\Swapi as SwapiRepository;
+use App\Contracts\Helpers\ApiResponse;
 
 class UserController extends Controller
 {
@@ -16,15 +17,19 @@ class UserController extends Controller
 
     private $swapiRepository;
 
+    private $apiResponse;
+
     public function __construct(
         UserRepositoryInterface $userRepository,
         CacheRepository $cacheRepository,
-        SwapiRepository $swapiRepository
+        SwapiRepository $swapiRepository,
+        ApiResponse $apiResponse
     ) {
         $this->userRepository  = $userRepository;
         $this->cacheRepository = $cacheRepository;
         $this->swapiRepository = $swapiRepository;
-        $this->swapiUrl        = config('swapi.base_uri');
+        $this->apiResponse     = $apiResponse;
+        $this->swapiUrl        = config('swapi.base_url');
     }
 
     public function update(UpdateRequest $request)
@@ -35,10 +40,8 @@ class UserController extends Controller
             $user,
             $request->input('email')
         );
-
-        return response()->json([
-            'message' => 'Email changed.'
-        ], 200);
+        
+        return $this->apiResponse->success();
     }
 
     public function getFilmsByHeroName()
@@ -61,10 +64,7 @@ class UserController extends Controller
             ];
         });
 
-        return response()->json([
-            'message' => 'Success.',
-            'results' => $response,
-        ], 200);
+        return $this->apiResponse->success($response);
     }
 
     public function getPlanetsByHeroName()
@@ -87,10 +87,7 @@ class UserController extends Controller
             ];
         });
 
-        return response()->json([
-            'message' => 'Success.',
-            'results' => $response,
-        ], 200);
+        return $this->apiResponse->success($response);
     }
 
     public function getResources(string $resource, int $id)
@@ -112,14 +109,9 @@ class UserController extends Controller
         $heroName = array_search($user->hero, $response->toArray());
 
         if (!$heroName) {
-            return response()->json([
-                'message' => 'Forbidden.'
-            ], 403);
+            return $this->apiResponse->error(401, 'Unauthorized.');
         }
 
-        return response()->json([
-            'message' => 'Success.',
-            'results' => $resource,
-        ], 200);
+        return $this->apiResponse->success($resource);
     }
 }

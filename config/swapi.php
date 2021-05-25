@@ -1,5 +1,5 @@
 <?php
 
 return [
-    'base_uri' => 'https://swapi.dev/api/',
+    'base_url' => 'https://swapi.dev/api/',
 ];
