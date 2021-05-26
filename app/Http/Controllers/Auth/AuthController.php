@@ -6,57 +6,33 @@ use App\Contracts\Repositories\UserRepositoryInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
-use App\Contracts\Helpers\Cache as CacheRepository;
-use App\Contracts\Helpers\Swapi as SwapiRepository;
-use App\Contracts\Helpers\ApiResponse;
+use App\Contracts\SwapiInterface;
+use Illuminate\Http\JsonResponse;
 
 class AuthController extends Controller
 {
-    private $userRepository;
+    private UserRepositoryInterface $userRepository;
 
-    private $cacheRepository;
-
-    private $swapiRepository;
-
-    private $apiResponse;
-
-    private $swapiUrl;
+    private SwapiInterface $swapi;
 
     public function __construct(
         UserRepositoryInterface $userRepository,
-        CacheRepository $cacheRepository,
-        SwapiRepository $swapiRepository,
-        ApiResponse $apiResponse
+        SwapiInterface $swapi
     )
     {
         $this->userRepository = $userRepository;
-        $this->cacheRepository = $cacheRepository;
-        $this->swapiRepository = $swapiRepository;
-        $this->apiResponse = $apiResponse;
-        $this->swapiUrl = config('swapi.base_url');
+        $this->swapi = $swapi;
     }
 
     public function register(RegisterRequest $request)
     {
-        $response = $this->cacheRepository->getOrSet('people', function () {
-            return $this->swapiRepository->getResponse($this->swapiUrl . 'people');
-        });
-
-        $hero = rand(1, $response['count']);
-
-        $response = $this->cacheRepository->getOrSet('people' . $hero, function () use ($hero) {
-            return $this->swapiRepository->getResponse($this->swapiUrl . 'people/' . $hero);
-        });
-
-        $hero = $response['name'];
-
         $register = $this->userRepository->register(
             $request->input('email'),
             $request->input('password'),
-            $hero
+            $this->swapi->getRandomHeroName()
         );
 
-        return $this->apiResponse->success($register);
+        return $this->success($register);
     }
 
     public function login(LoginRequest $request)
@@ -67,16 +43,16 @@ class AuthController extends Controller
         );
 
         if (!$login) {
-            return $this->apiResponse->error(401, 'Wrong data.');
+            return $this->error(401, 'Wrong data.');
         }
 
-        return $this->apiResponse->success($login);
+        return $this->success($login);
     }
 
     public function logout()
     {
         $this->userRepository->logout();
 
-        return $this->apiResponse->success();
+        return $this->success();
     }
 }

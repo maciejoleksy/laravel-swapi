@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Hash;
 
 class UserRepository implements UserRepositoryInterface
 {
-    public function register(string $email, string $password, string $hero)
+    public function register(string $email, string $password, string $hero): array
     {
         $user = User::create([
             'email' => $email,
