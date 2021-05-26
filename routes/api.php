@@ -15,16 +15,22 @@ use Illuminate\Support\Facades\Route;
 |
  */
 
-Route::post('/register', [AuthController::class, 'register'])->name('register');
-Route::post('/login', [AuthController::class, 'login'])->name('login');
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
+    Route::get('/logout', [AuthController::class, 'logout']);
 
     Route::group(['prefix' => 'user', 'as' => 'user.'], function () {
-        Route::post('/update', [UserController::class, 'update'])->name('update');
-        Route::get('/films', [UserController::class, 'getFilmsByHeroName'])->name('get.films.by.hero.name');
-        Route::get('/planets', [UserController::class, 'getPlanetsByHeroName'])->name('get.planets.by.hero.name');
-        Route::get('/{resources}/{id}', [UserController::class, 'getResources'])->name('get.resources');
+        Route::post('/update', [UserController::class, 'update']);
+        Route::get('/films', [UserController::class, 'getFilmsByHeroName']);
+        Route::get('/planets', [UserController::class, 'getPlanetsByHeroName']);
     });
+
+    Route::get('/people/{id}', [UserController::class, 'getResourcePeople']);
+    Route::get('/films/{id}', [UserController::class, 'getResourceFilms']);
+    Route::get('/planets/{id}', [UserController::class, 'getResourcePlanets']);
+    Route::get('/starships/{id}', [UserController::class, 'getResourceStarships']);
+    Route::get('/vehicles/{id}', [UserController::class, 'getResourceVehicles']);
+    Route::get('/species/{id}', [UserController::class, 'getResourceSpecies']);
 });

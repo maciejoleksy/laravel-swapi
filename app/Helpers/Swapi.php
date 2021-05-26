@@ -89,7 +89,7 @@ class Swapi implements SwapiInterface
         });
     }
 
-    public function hasPermissions(string $resource, int $id, string $hero)
+    public function hasPermissionsByPeople(string $resource, int $id, string $hero)
     {
         $resources = $this->getResources($resource, $id);
 
@@ -101,6 +101,55 @@ class Swapi implements SwapiInterface
         });
 
         return false !== array_search($hero, $response->toArray());
+    }
+
+    public function hasPermissionsByPilots(string $resource, int $id, string $hero)
+    {
+        $resources = $this->getResources($resource, $id);
+
+        $response = collect(Arr::get($resources, 'pilots', []))->map(function ($person) {
+            $response = $this->cache->getOrSet($person, function () use ($person) {
+                return $this->getResponse($person);
+            });
+            return Arr::get($response, 'name');
+        });
+
+        return false !== array_search($hero, $response->toArray());
+    }
+
+    public function hasPermissionsByResidents(string $resource, int $id, string $hero)
+    {
+        $resources = $this->getResources($resource, $id);
+
+        $response = collect(Arr::get($resources, 'residents', []))->map(function ($person) {
+            $response = $this->cache->getOrSet($person, function () use ($person) {
+                return $this->getResponse($person);
+            });
+            return Arr::get($response, 'name');
+        });
+
+        return false !== array_search($hero, $response->toArray());
+    }
+
+    public function hasPermissionsByCharacters(string $resource, int $id, string $hero)
+    {
+        $resources = $this->getResources($resource, $id);
+
+        $response = collect(Arr::get($resources, 'characters', []))->map(function ($person) {
+            $response = $this->cache->getOrSet($person, function () use ($person) {
+                return $this->getResponse($person);
+            });
+            return Arr::get($response, 'name');
+        });
+
+        return false !== array_search($hero, $response->toArray());
+    }
+
+    public function hasPermissionsByName(string $resource, int $id, string $hero)
+    {
+        $resources = $this->getResources($resource, $id);
+
+        return false !== (Arr::get($resources, 'name') === $hero);
     }
 
     protected function getDecodedResponse($response)

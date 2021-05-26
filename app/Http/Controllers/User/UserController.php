@@ -60,19 +60,99 @@ class UserController extends Controller
         ]);
     }
 
-    public function getResources(string $resource, int $id)
+    public function getResourcePlanets(int $id)
     {
         /** @var User $user */
         $user = auth()->user();
 
-        $hasPermissions = $this->swapi->hasPermissions($resource, $id, $user->hero);
+        $hasPermissions = $this->swapi->hasPermissionsByResidents('planets', $id, $user->hero);
 
         if (!$hasPermissions) {
             return $this->error(401, 'Unauthorized.');
         }
 
         return $this->success([
-            'resources' => $this->swapi->getResources($resource, $id),
+            'resources' => $this->swapi->getResources('planets', $id),
+        ]);
+    }
+
+    public function getResourceFilms(int $id)
+    {
+        /** @var User $user */
+        $user = auth()->user();
+
+        $hasPermissions = $this->swapi->hasPermissionsByCharacters('films', $id, $user->hero);
+
+        if (!$hasPermissions) {
+            return $this->error(401, 'Unauthorized.');
+        }
+
+        return $this->success([
+            'resources' => $this->swapi->getResources('films', $id),
+        ]);
+    }
+
+    public function getResourcePeople(int $id)
+    {
+        /** @var User $user */
+        $user = auth()->user();
+
+        $hasPermissions = $this->swapi->hasPermissionsByName('people', $id, $user->hero);
+
+        if (!$hasPermissions) {
+            return $this->error(401, 'Unauthorized.');
+        }
+
+        return $this->success([
+            'resources' => $this->swapi->getResources('people', $id),
+        ]);
+    }
+
+    public function getResourceVehicles(int $id)
+    {
+        /** @var User $user */
+        $user = auth()->user();
+
+        $hasPermissions = $this->swapi->hasPermissionsByPilots('vehicles', $id, $user->hero);
+
+        if (!$hasPermissions) {
+            return $this->error(401, 'Unauthorized.');
+        }
+
+        return $this->success([
+            'resources' => $this->swapi->getResources('vehicles', $id),
+        ]);
+    }
+
+    public function getResourceStarships(int $id)
+    {
+        /** @var User $user */
+        $user = auth()->user();
+
+        $hasPermissions = $this->swapi->hasPermissionsByPilots('starships', $id, $user->hero);
+
+        if (!$hasPermissions) {
+            return $this->error(401, 'Unauthorized.');
+        }
+
+        return $this->success([
+            'resources' => $this->swapi->getResources('starships', $id),
+        ]);
+    }
+
+    public function getResourceSpecies(int $id)
+    {
+        /** @var User $user */
+        $user = auth()->user();
+
+        $hasPermissions = $this->swapi->hasPermissionsByPeople('species', $id, $user->hero);
+
+        if (!$hasPermissions) {
+            return $this->error(401, 'Unauthorized.');
+        }
+
+        return $this->success([
+            'resources' => $this->swapi->getResources('species', $id),
         ]);
     }
 }
