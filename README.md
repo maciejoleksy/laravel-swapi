@@ -1,3 +1,36 @@
+## Documentation
+
+Installation
+1. ``composer install``
+2. ``composer update``
+2. ``cp .env.example .env``
+4. ``php artisan key:generate``
+5. ``docker-compose up -d``
+6. ``docker-compose exec laravel.test bash``
+7. ``php artisan migrate``
+
+Endpoints
+
+[![Run in Postman](https://run.pstmn.io/button.svg)](https://app.getpostman.com/run-collection/15900003-1211ec33-886b-4e89-84eb-0ff7bc257163?action=collection%2Ffork&collection-url=entityId%3D15900003-1211ec33-886b-4e89-84eb-0ff7bc257163%26entityType%3Dcollection%26workspaceId%3D8e801ffd-0623-4421-91a0-7763a74fbaaf)
+- ``/api/register`` - **POST** Register new user. Parameters: email, password.
+- ``/api/login`` - **POST** Login user. Parameters: email, password.
+- ``/api/logout`` - **GET** Logout user.
+- ``/api/user/update`` - **POST** Update user email. Parameters: email.
+- ``/api/user/films`` - **GET** all films associated with a hero from the user profile.
+- ``/api/user/planets`` - **GET** all planets associated with a hero from the user profile.
+- ``/api/{resource}/{id}`` - **GET** resources with specific id - a user can only get resources that belong to his hero.
+
+Resources
+- ``films`` _string_ - The URL root for Film resources.
+- ``people`` _string_ - The URL root for People resources.
+- ``planets`` _string_ - The URL root for Planet resources.
+- ``species`` _string_ - The URL root for Species resources.
+- ``starships`` _string_ - The URL root for Starships resources.
+- ``vehicles``  _string_ - The URL root for Vehicles resources.
+
+Console commands
+- ``php artisan users:list`` - Command return list of registered users.
+
 <p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400"></a></p>
 
 <p align="center">
