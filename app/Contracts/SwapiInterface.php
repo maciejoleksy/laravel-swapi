@@ -18,5 +18,13 @@ interface SwapiInterface
 
     public function getResources(string $resource, int $id);
 
-    public function hasPermissions(string $resource, int $id, string $hero);
+    public function hasPermissionsByPeople(string $resource, int $id, string $hero);
+
+    public function hasPermissionsByPilots(string $resource, int $id, string $hero);
+
+    public function hasPermissionsByResidents(string $resource, int $id, string $hero);
+
+    public function hasPermissionsByCharacters(string $resource, int $id, string $hero);
+
+    public function hasPermissionsByName(string $resource, int $id, string $hero);
 }
