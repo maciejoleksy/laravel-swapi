@@ -3,8 +3,9 @@
 namespace App\Helpers;
 
 use App\Contracts\CacheInterface;
-use Illuminate\Contracts\Cache\Repository as CacheRepository;
+use Illuminate\Contracts\Cache\Factory as CacheRepository;
 use Closure;
+use Illuminate\Contracts\Cache\Repository;
 use Psr\SimpleCache\InvalidArgumentException;
 
 class Cache implements CacheInterface
@@ -18,9 +19,6 @@ class Cache implements CacheInterface
         $this->cacheRepository = $cacheRepository;
     }
 
-    /**
-     * @throws InvalidArgumentException
-     */
     public function getOrSet(string $key, closure $callback)
     {
         if (!$this->cacheRepository->get($key)) {

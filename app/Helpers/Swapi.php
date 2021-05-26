@@ -5,6 +5,8 @@ namespace App\Helpers;
 use App\Contracts\CacheInterface;
 use App\Contracts\SwapiInterface;
 use Exception;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
 
 class Swapi implements SwapiInterface
@@ -52,25 +54,56 @@ class Swapi implements SwapiInterface
 
     public function getFilms(string $hero)
     {
-        // TODO: Implement getFilms() method.
+        $response = $this->cache->getOrSet('people' . $hero, function () use ($hero) {
+            return $this->getResponse($this->swapiUrl . 'people/?search=' . $hero);
+        });
+
+        return collect(Arr::get($response, 'results', []))->mapWithKeys(function ($result) {
+            return collect(Arr::get($result, 'films', []))->map(function ($film) {
+                return $this->cache->getOrSet($film, function () use ($film) {
+                    return $this->getResponse($film);
+                });
+            });
+        });
     }
 
     public function getPlanets(string $hero)
     {
-        // TODO: Implement getPlanets() method.
-    }
+        $response = $this->cache->getOrSet('people' . $hero, function () use ($hero) {
+            return $this->getResponse($this->swapiUrl . 'people/?search=' . $hero);
+        });
 
-    public function hasPermissions(string $resource, int $id, string $hero)
-    {
-        // TODO: Implement hasPermissions() method.
+        return collect(Arr::get($response, 'results', []))->mapWithKeys(function ($result) {
+            return collect(Arr::get($result, 'homeworld', []))->map(function ($planet) {
+                return $this->cache->getOrSet($planet, function () use ($planet) {
+                    return $this->getResponse($planet);
+                });
+            });
+        });
     }
 
     public function getResources(string $resource, int $id)
     {
-        // TODO: Implement getResources() method.
+        return $this->cache->getOrSet($resource . '/' . $id, function () use ($resource, $id) {
+            return $this->getResponse($this->swapiUrl . $resource . '/' . $id);
+        });
     }
 
-    private function getDecodedResponse($response)
+    public function hasPermissions(string $resource, int $id, string $hero)
+    {
+        $resources = $this->getResources($resource, $id);
+
+        $response = collect(Arr::get($resources, 'people', []))->map(function ($person) {
+            $response = $this->cache->getOrSet($person, function () use ($person) {
+                return $this->getResponse($person);
+            });
+            return Arr::get($response, 'name');
+        });
+
+        return false !== array_search($hero, $response->toArray());
+    }
+
+    protected function getDecodedResponse($response)
     {
         return (array)json_decode($response->getBody()->getContents(), true);
     }

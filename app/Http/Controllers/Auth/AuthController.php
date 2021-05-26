@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Contracts\SwapiInterface;
+use Illuminate\Http\JsonResponse;
 
 class AuthController extends Controller
 {

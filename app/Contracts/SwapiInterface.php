@@ -2,6 +2,8 @@
 
 namespace App\Contracts;
 
+use Illuminate\Support\Collection;
+
 interface SwapiInterface
 {
     public function getResponse(string $url);
@@ -14,7 +16,7 @@ interface SwapiInterface
 
     public function getPlanets(string $hero);
 
-    public function hasPermissions(string $resource, int $id, string $hero);
-
     public function getResources(string $resource, int $id);
+
+    public function hasPermissions(string $resource, int $id, string $hero);
 }
